@@ -6,7 +6,8 @@ const vscode = acquireVsCodeApi();
 const previewEl = document.getElementById('preview')!;
 let currentContent = '';
 
-// Selection sync state
+// --- Source block parsing ---
+
 interface SourceBlock {
   startOffset: number;
   endOffset: number;
@@ -53,6 +54,8 @@ function parseSourceBlocks(content: string): SourceBlock[] {
   return blocks;
 }
 
+// --- Preview block grouping ---
+
 interface PreviewGroup {
   elements: HTMLElement[];
 }
@@ -69,7 +72,7 @@ function groupPreviewBlocks(preview: HTMLElement): PreviewGroup[] {
         groups.push({ elements: current });
         current = [];
       }
-    } else if (child.textContent?.trim()) {
+    } else {
       current.push(child);
     }
   }
@@ -81,8 +84,22 @@ function groupPreviewBlocks(preview: HTMLElement): PreviewGroup[] {
   return groups;
 }
 
+// --- Matching (same as content-generator) ---
+
+function findPreviewGroupIndex(groups: PreviewGroup[], target: HTMLElement): number {
+  for (let i = 0; i < groups.length; i++) {
+    for (const el of groups[i].elements) {
+      if (el === target || el.contains(target)) {
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+
+// --- Editor → Preview highlight ---
+
 function highlightPreview(start: number, end: number) {
-  // Clear old highlights
   previewEl.querySelectorAll('.source-line-highlighted').forEach((el) => {
     el.classList.remove('source-line-highlighted');
   });
@@ -109,7 +126,29 @@ function highlightPreview(start: number, end: number) {
   }
 }
 
-// Listen for messages from extension
+// --- Preview → Editor: click selects source block ---
+
+previewEl.addEventListener('mouseup', (e) => {
+  const target = e.target as HTMLElement;
+  if (!target || target === previewEl) return;
+
+  const groups = groupPreviewBlocks(previewEl);
+  const clickedIndex = findPreviewGroupIndex(groups, target);
+  if (clickedIndex < 0) return;
+
+  const sourceBlocks = parseSourceBlocks(currentContent);
+  if (clickedIndex < sourceBlocks.length) {
+    const block = sourceBlocks[clickedIndex];
+    vscode.postMessage({
+      type: 'selectSource',
+      start: block.startOffset,
+      end: block.endOffset,
+    });
+  }
+});
+
+// --- Listen for messages from extension ---
+
 window.addEventListener('message', (event) => {
   const message = event.data;
 

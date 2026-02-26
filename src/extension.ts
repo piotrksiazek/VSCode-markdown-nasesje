@@ -2,8 +2,18 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 
 let currentPanel: vscode.WebviewPanel | undefined;
+let lastMarkdownEditor: vscode.TextEditor | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
+  // Track the last active markdown editor
+  const trackEditor = (editor: vscode.TextEditor | undefined) => {
+    if (editor && editor.document.languageId === 'markdown') {
+      lastMarkdownEditor = editor;
+    }
+  };
+
+  trackEditor(vscode.window.activeTextEditor);
+
   const disposable = vscode.commands.registerCommand(
     'markdown-nasesje.openPreview',
     () => {
@@ -12,6 +22,8 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showWarningMessage('No active markdown file.');
         return;
       }
+
+      trackEditor(editor);
 
       if (currentPanel) {
         currentPanel.reveal(vscode.ViewColumn.Beside);
@@ -40,6 +52,25 @@ export function activate(context: vscode.ExtensionContext) {
 
       sendContent(currentPanel, editor.document);
 
+      // Preview → Editor: receive click from webview, select in editor
+      currentPanel.webview.onDidReceiveMessage((message) => {
+        if (message.type === 'selectSource') {
+          // Use lastMarkdownEditor since activeTextEditor is undefined
+          // when the webview panel has focus
+          const editor = lastMarkdownEditor;
+          if (!editor) return;
+
+          const doc = editor.document;
+          const startPos = doc.positionAt(message.start);
+          const endPos = doc.positionAt(message.end);
+          editor.selection = new vscode.Selection(startPos, endPos);
+          editor.revealRange(
+            new vscode.Range(startPos, endPos),
+            vscode.TextEditorRevealType.InCenterIfOutsideViewport
+          );
+        }
+      });
+
       currentPanel.onDidDispose(() => {
         currentPanel = undefined;
       });
@@ -48,8 +79,8 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Update preview on document change
   const changeDisposable = vscode.workspace.onDidChangeTextDocument((e) => {
-    if (currentPanel && vscode.window.activeTextEditor) {
-      if (e.document === vscode.window.activeTextEditor.document) {
+    if (currentPanel && lastMarkdownEditor) {
+      if (e.document === lastMarkdownEditor.document) {
         sendContent(currentPanel, e.document);
       }
     }
@@ -58,6 +89,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Update preview when switching tabs
   const editorChangeDisposable = vscode.window.onDidChangeActiveTextEditor(
     (editor) => {
+      trackEditor(editor);
       if (currentPanel && editor && editor.document.languageId === 'markdown') {
         sendContent(currentPanel, editor.document);
         currentPanel.title = `NaSesje: ${path.basename(editor.document.fileName)}`;
@@ -70,9 +102,9 @@ export function activate(context: vscode.ExtensionContext) {
     (e) => {
       if (
         currentPanel &&
-        e.textEditor === vscode.window.activeTextEditor &&
         e.textEditor.document.languageId === 'markdown'
       ) {
+        trackEditor(e.textEditor);
         const doc = e.textEditor.document;
         const sel = e.selections[0];
         currentPanel.webview.postMessage({

@@ -9,13 +9,55 @@ import hljs from 'highlight.js';
 // must remain intact. The old React app used react-latex (post-markdown)
 // which required escaping — that approach does NOT apply here.
 
-function preprocessForNewlines(content: string): string {
-  const bigBreak = '\n&&BREAK&&\n';
-  const smallBreak = '\n&&break&&\n';
+const HTML_BLOCK_OPEN = /^<(div|section|details|figure|aside|article)\b[^>]*>/i;
+const HTML_BLOCK_CLOSE = /^<\/(div|section|details|figure|aside|article)>/i;
 
-  let result = content.replace(/\n\s*\n/g, `\n${bigBreak}\n`);
-  result = result.replace(/\\\s*$/gm, `\n${smallBreak}\n`);
-  return result;
+function preprocessForNewlines(content: string): string {
+  // Insert &&BREAK&& markers at blank-line boundaries, but NOT inside
+  // HTML block elements (to match source block parsing 1:1).
+  // Blank lines must be preserved for markdown-it to parse correctly.
+  const lines = content.split('\n');
+  const result: string[] = [];
+  let htmlDepth = 0;
+  let prevWasBlank = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    const isBlank = trimmed === '';
+
+    const isOpen = HTML_BLOCK_OPEN.test(trimmed);
+    const isClose = HTML_BLOCK_CLOSE.test(trimmed);
+    const isSelf = isOpen && isClose;
+
+    if (isOpen && !isSelf) htmlDepth++;
+    if (isClose && !isSelf) htmlDepth = Math.max(0, htmlDepth - 1);
+
+    if (isBlank) {
+      if (!prevWasBlank && htmlDepth === 0) {
+        // First blank line in a sequence, outside HTML → insert marker
+        result.push('');
+        result.push('&&BREAK&&');
+        result.push('');
+      } else {
+        // Inside HTML block or consecutive blank → keep as-is
+        result.push('');
+      }
+      prevWasBlank = true;
+    } else {
+      prevWasBlank = false;
+      // Trailing backslash → small break
+      if (/\\\s*$/.test(lines[i])) {
+        result.push(lines[i].replace(/\\\s*$/, ''));
+        result.push('');
+        result.push('&&break&&');
+        result.push('');
+      } else {
+        result.push(lines[i]);
+      }
+    }
+  }
+
+  return result.join('\n');
 }
 
 // --- Color directive parsing ---

@@ -2,3 +2,5 @@ node_modules/
 dist/
 *.vsix
 test-render.js
+test-debug.js
+VSCode-markdown-nasesje

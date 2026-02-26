@@ -1,0 +1,210 @@
+// KaTeX and hljs CSS are loaded via <link> tags in the webview HTML
+// to avoid font bundling issues with esbuild.
+
+// --- Base preview styles ---
+
+:root {
+  --highlited-color: #44cadb;
+  --yellow-color: #e8ab6a;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #1a1a1a;
+  background: #ffffff;
+}
+
+#preview {
+  padding: 12px 16px 60px 16px;
+  text-align: left;
+  max-width: 800px;
+
+  h1 {
+    font-size: 1.8em;
+    margin: 0.6em 0 0.4em;
+    font-weight: 700;
+  }
+
+  h2 {
+    font-size: 1.4em;
+    margin: 0.5em 0 0.3em;
+    font-weight: 600;
+  }
+
+  h3 {
+    font-size: 1.2em;
+    margin: 0.4em 0 0.2em;
+    font-weight: 600;
+  }
+
+  h4, h5, h6 {
+    font-size: 1.05em;
+    margin: 0.3em 0 0.2em;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0.3em 0;
+  }
+
+  a {
+    color: #007acc;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  ul, ol {
+    padding-left: 1.5em;
+    margin: 0.3em 0;
+  }
+
+  li {
+    margin: 0.15em 0;
+  }
+
+  table {
+    border-collapse: collapse;
+    margin: 0.5em 0;
+    width: 100%;
+  }
+
+  th, td {
+    border: 1px solid #ddd;
+    padding: 6px 12px;
+    text-align: left;
+  }
+
+  th {
+    background: #f5f5f5;
+    font-weight: 600;
+  }
+
+  blockquote {
+    border-left: 4px solid #ddd;
+    margin: 0.5em 0;
+    padding: 0.2em 1em;
+    color: #555;
+    background: #fafafa;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid #ddd;
+    margin: 1em 0;
+  }
+
+  // Inline code
+  code:not(.hljs) {
+    background: #f0f0f0;
+    padding: 0.15em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  }
+}
+
+// --- Block styles (from block.scss) ---
+
+.line-breaks {
+  height: 14px;
+  content: ' ';
+
+  &--small {
+    height: 3px;
+  }
+}
+
+.img-wrapper {
+  margin-top: 20px;
+  display: flex;
+
+  img {
+    border-radius: 15px;
+    max-width: 535px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 95%;
+    height: auto;
+    pointer-events: none;
+    user-select: none;
+    margin: 10px;
+  }
+}
+
+.link-wrapper {
+  margin-left: 20px;
+}
+
+.block {
+  &__code {
+    margin: 10px 0 !important;
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+
+    &__button-wrapper {
+      width: 100%;
+      position: relative;
+    }
+
+    &__programming-language {
+      margin-top: 0;
+      margin-bottom: 0;
+      display: inline;
+      position: absolute;
+      left: 16px;
+      top: 10px;
+      color: #aaa;
+      font-size: 12px;
+      user-select: none;
+      z-index: 1;
+    }
+
+    pre {
+      margin: 0;
+      padding: 0;
+
+      code.hljs {
+        padding: 30px 16px 16px 16px;
+        border-radius: 10px;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+    }
+  }
+}
+
+// --- Selection sync highlight ---
+
+.source-line-highlighted {
+  background-color: rgba(0, 122, 204, 0.15) !important;
+  outline: 1px solid rgba(0, 122, 204, 0.3);
+  border-radius: 2px;
+}
+
+// --- KaTeX tweaks ---
+
+.katex {
+  font-size: 1.1em;
+}
+
+.katex-display {
+  margin: 0.5em 0;
+  overflow-x: auto;
+}
+
+// --- Empty state ---
+
+.markdown-preview__empty {
+  color: #555;
+  font-style: italic;
+  padding: 20px;
+}

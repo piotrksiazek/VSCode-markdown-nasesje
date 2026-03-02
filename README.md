@@ -18,7 +18,7 @@ Rozszerzenie do VSCode / Cursor z podglądem Markdown z obsługą LaTeX (KaTeX),
 ### Wymagania
 
 - Node.js ≥ 18
-- VSCode lub Cursor
+- VSCode, Cursor lub Antigravity
 
 ### Kroki
 
@@ -33,11 +33,17 @@ npm install
 # 3. Zbuduj rozszerzenie
 npm run build
 
-# 4. Zainstaluj w Cursorze (symlink)
+# 4. Zainstaluj — wybierz swój edytor:
+
+# Cursor (symlink):
 ln -sf "$(pwd)" ~/.cursor/extensions/nasesje.markdown-nasesje-0.0.1
 
-# Dla VSCode:
+# VSCode (symlink):
 # ln -sf "$(pwd)" ~/.vscode/extensions/nasesje.markdown-nasesje-0.0.1
+
+# Antigravity (wymaga instalacji przez .vsix):
+# npx vsce package --no-dependencies --allow-missing-repository --skip-license
+# /Applications/Antigravity.app/Contents/Resources/app/bin/antigravity --install-extension markdown-nasesje-0.0.1.vsix
 
 # 5. Przeładuj edytor
 # Cmd+Shift+P → "Developer: Reload Window"

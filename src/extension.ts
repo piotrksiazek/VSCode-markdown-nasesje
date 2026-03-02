@@ -41,6 +41,8 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.Uri.joinPath(context.extensionUri, 'dist'),
             vscode.Uri.joinPath(context.extensionUri, 'node_modules', 'katex', 'dist'),
             vscode.Uri.joinPath(context.extensionUri, 'node_modules', 'highlight.js', 'styles'),
+            ...(vscode.workspace.workspaceFolders?.map(f => f.uri) || []),
+            vscode.Uri.file('/'),
           ],
         }
       );
@@ -125,9 +127,13 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 function sendContent(panel: vscode.WebviewPanel, document: vscode.TextDocument) {
+  const docDirUri = vscode.Uri.joinPath(document.uri, '..');
+  const resourceBaseUrl = panel.webview.asWebviewUri(docDirUri).toString();
+
   panel.webview.postMessage({
     type: 'update',
     content: document.getText(),
+    resourceBaseUrl,
   });
 }
 

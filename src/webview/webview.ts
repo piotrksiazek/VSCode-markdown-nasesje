@@ -5,6 +5,7 @@ const vscode = acquireVsCodeApi();
 
 const previewEl = document.getElementById('preview')!;
 let currentContent = '';
+let resourceBaseUrl = '';
 
 // --- Source block parsing ---
 
@@ -155,7 +156,11 @@ window.addEventListener('message', (event) => {
   switch (message.type) {
     case 'update':
       currentContent = message.content;
+      if (message.resourceBaseUrl) {
+        resourceBaseUrl = message.resourceBaseUrl;
+      }
       previewEl.innerHTML = renderMarkdown(message.content);
+      resolveImageSources(previewEl, resourceBaseUrl);
       break;
 
     case 'selection':
@@ -163,5 +168,32 @@ window.addEventListener('message', (event) => {
       break;
   }
 });
+
+// --- Resolve image sources to webview URIs ---
+
+function resolveImageSources(container: HTMLElement, baseUrl: string) {
+  if (!baseUrl) return;
+  const base = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+
+  container.querySelectorAll('img').forEach((img) => {
+    const src = img.getAttribute('src');
+    if (!src) return;
+    // Skip already-resolved URLs
+    if (/^(https?|data|blob|vscode-):/.test(src)) return;
+
+    try {
+      if (src.startsWith('/')) {
+        // Absolute file path — use origin from base URL
+        const origin = new URL(base).origin;
+        img.src = origin + src;
+      } else {
+        // Relative path — resolve against document directory
+        img.src = new URL(src, base).toString();
+      }
+    } catch {
+      // Invalid URL, leave as-is
+    }
+  });
+}
 
 declare function acquireVsCodeApi(): { postMessage(msg: any): void };

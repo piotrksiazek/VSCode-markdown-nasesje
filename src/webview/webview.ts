@@ -6,6 +6,7 @@ const vscode = acquireVsCodeApi();
 const previewEl = document.getElementById('preview')!;
 let currentContent = '';
 let resourceBaseUrl = '';
+let wzorMap: Record<string, string> = {};
 
 // --- Source block parsing ---
 
@@ -161,10 +162,16 @@ window.addEventListener('message', (event) => {
       }
       previewEl.innerHTML = renderMarkdown(message.content);
       resolveImageSources(previewEl, resourceBaseUrl);
+      setupWzorHovers();
       break;
 
     case 'selection':
       highlightPreview(message.start, message.end);
+      break;
+
+    case 'wzorMap':
+      wzorMap = message.map;
+      setupWzorHovers();
       break;
   }
 });
@@ -196,4 +203,46 @@ function resolveImageSources(container: HTMLElement, baseUrl: string) {
   });
 }
 
+// --- Wzor hover tooltips ---
+
+function setupWzorHovers() {
+  if (!Object.keys(wzorMap).length) return;
+
+  previewEl.querySelectorAll<HTMLElement>('.wzor-lekcja[data-wzor]').forEach((node) => {
+    const el = node as WzorElement;
+    // Avoid attaching listeners twice
+    if (el.dataset.wzorHover) return;
+    el.dataset.wzorHover = '1';
+
+    el.addEventListener('mouseenter', () => {
+      const id = el.dataset.wzor;
+      if (!id || !wzorMap[id]) return;
+
+      const tooltip = document.createElement('div');
+      tooltip.className = 'wzor-tooltip';
+      const img = document.createElement('img');
+      img.src = wzorMap[id];
+      tooltip.appendChild(img);
+      document.body.appendChild(tooltip);
+
+      const rect = el.getBoundingClientRect();
+      tooltip.style.left = `${rect.left}px`;
+      tooltip.style.top = `${rect.bottom + 6}px`;
+
+      el._wzorTooltip = tooltip;
+    });
+
+    el.addEventListener('mouseleave', () => {
+      if (el._wzorTooltip) {
+        el._wzorTooltip.remove();
+        el._wzorTooltip = undefined;
+      }
+    });
+  });
+}
+
 declare function acquireVsCodeApi(): { postMessage(msg: any): void };
+
+interface WzorElement extends HTMLElement {
+  _wzorTooltip?: HTMLElement;
+}

@@ -53,6 +53,7 @@ export function activate(context: vscode.ExtensionContext) {
       );
 
       sendContent(currentPanel, editor.document);
+      buildWzorMap(currentPanel);
 
       // Preview → Editor: receive click from webview, select in editor
       currentPanel.webview.onDidReceiveMessage((message) => {
@@ -94,6 +95,7 @@ export function activate(context: vscode.ExtensionContext) {
       trackEditor(editor);
       if (currentPanel && editor && editor.document.languageId === 'markdown') {
         sendContent(currentPanel, editor.document);
+        buildWzorMap(currentPanel);
         currentPanel.title = `NaSesje: ${path.basename(editor.document.fileName)}`;
       }
     }
@@ -135,6 +137,29 @@ function sendContent(panel: vscode.WebviewPanel, document: vscode.TextDocument) 
     content: document.getText(),
     resourceBaseUrl,
   });
+}
+
+async function buildWzorMap(panel: vscode.WebviewPanel): Promise<void> {
+  const files = await vscode.workspace.findFiles('**/wzory/**/wzor.md');
+  const map: Record<string, string> = {};
+
+  for (const mdUri of files) {
+    try {
+      const raw = await vscode.workspace.fs.readFile(mdUri);
+      const text = Buffer.from(raw).toString('utf-8');
+      const fmMatch = text.match(/^---\s*\n([\s\S]*?)\n---/);
+      if (!fmMatch) continue;
+      const idMatch = fmMatch[1].match(/^id:\s*(.+)$/m);
+      if (!idMatch) continue;
+      const id = idMatch[1].trim();
+      const pngUri = vscode.Uri.joinPath(mdUri, '..', 'wzor.png');
+      map[id] = panel.webview.asWebviewUri(pngUri).toString();
+    } catch {
+      // skip unreadable files
+    }
+  }
+
+  panel.webview.postMessage({ type: 'wzorMap', map });
 }
 
 function getWebviewContent(

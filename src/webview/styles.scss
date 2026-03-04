@@ -201,6 +201,16 @@ body {
   overflow-x: auto;
 }
 
+// --- Wzor (formula from matura card) ---
+
+.wzor-lekcja {
+  border: 2px solid var(--highlited-color);
+  border-radius: 10px;
+  padding: 8px 16px;
+  margin: 10px 0;
+  background: rgba(68, 202, 219, 0.06);
+}
+
 // --- Empty state ---
 
 .markdown-preview__empty {

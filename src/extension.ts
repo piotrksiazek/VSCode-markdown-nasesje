@@ -39,8 +39,6 @@ export function activate(context: vscode.ExtensionContext) {
           enableScripts: true,
           localResourceRoots: [
             vscode.Uri.joinPath(context.extensionUri, 'dist'),
-            vscode.Uri.joinPath(context.extensionUri, 'node_modules', 'katex', 'dist'),
-            vscode.Uri.joinPath(context.extensionUri, 'node_modules', 'highlight.js', 'styles'),
             ...(vscode.workspace.workspaceFolders?.map(f => f.uri) || []),
             vscode.Uri.file('/'),
           ],
@@ -54,6 +52,27 @@ export function activate(context: vscode.ExtensionContext) {
 
       sendContent(currentPanel, editor.document);
       buildWzorMap(currentPanel);
+
+      // Watch image files for changes and bust the webview cache
+      const imageWatcher = vscode.workspace.createFileSystemWatcher(
+        '**/*.{png,jpg,jpeg,gif,svg,webp,bmp}'
+      );
+
+      let imageChangeTimeout: ReturnType<typeof setTimeout> | undefined;
+      const onImageChange = () => {
+        if (imageChangeTimeout) clearTimeout(imageChangeTimeout);
+        imageChangeTimeout = setTimeout(() => {
+          if (currentPanel) {
+            currentPanel.webview.postMessage({
+              type: 'imageChanged',
+              timestamp: Date.now(),
+            });
+          }
+        }, 300);
+      };
+
+      imageWatcher.onDidChange(onImageChange);
+      imageWatcher.onDidCreate(onImageChange);
 
       // Preview → Editor: receive click from webview, select in editor
       currentPanel.webview.onDidReceiveMessage((message) => {
@@ -75,6 +94,7 @@ export function activate(context: vscode.ExtensionContext) {
       });
 
       currentPanel.onDidDispose(() => {
+        imageWatcher.dispose();
         currentPanel = undefined;
       });
     }
@@ -136,12 +156,14 @@ function sendContent(panel: vscode.WebviewPanel, document: vscode.TextDocument) 
     type: 'update',
     content: document.getText(),
     resourceBaseUrl,
+    cacheBust: Date.now(),
   });
 }
 
 async function buildWzorMap(panel: vscode.WebviewPanel): Promise<void> {
   const files = await vscode.workspace.findFiles('**/wzory/**/wzor.md');
   const map: Record<string, string> = {};
+  const timestamp = Date.now();
 
   for (const mdUri of files) {
     try {
@@ -153,7 +175,7 @@ async function buildWzorMap(panel: vscode.WebviewPanel): Promise<void> {
       if (!idMatch) continue;
       const id = idMatch[1].trim();
       const pngUri = vscode.Uri.joinPath(mdUri, '..', 'wzor.png');
-      map[id] = panel.webview.asWebviewUri(pngUri).toString();
+      map[id] = panel.webview.asWebviewUri(pngUri).toString() + `?v=${timestamp}`;
     } catch {
       // skip unreadable files
     }
@@ -171,11 +193,11 @@ function getWebviewContent(
   );
 
   const katexCssUri = webview.asWebviewUri(
-    vscode.Uri.joinPath(extensionUri, 'node_modules', 'katex', 'dist', 'katex.min.css')
+    vscode.Uri.joinPath(extensionUri, 'dist', 'katex.min.css')
   );
 
   const hljsCssUri = webview.asWebviewUri(
-    vscode.Uri.joinPath(extensionUri, 'node_modules', 'highlight.js', 'styles', 'night-owl.css')
+    vscode.Uri.joinPath(extensionUri, 'dist', 'night-owl.css')
   );
 
   const webviewCssUri = webview.asWebviewUri(

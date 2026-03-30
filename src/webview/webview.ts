@@ -7,6 +7,7 @@ const previewEl = document.getElementById('preview')!;
 let currentContent = '';
 let resourceBaseUrl = '';
 let wzorMap: Record<string, string> = {};
+let currentCacheBust: number = Date.now();
 
 // --- Source block parsing ---
 
@@ -160,9 +161,15 @@ window.addEventListener('message', (event) => {
       if (message.resourceBaseUrl) {
         resourceBaseUrl = message.resourceBaseUrl;
       }
+      if (message.cacheBust) {
+        currentCacheBust = message.cacheBust;
+      }
+      const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
       previewEl.innerHTML = renderMarkdown(message.content);
-      resolveImageSources(previewEl, resourceBaseUrl);
+      resolveImageSources(previewEl, resourceBaseUrl, currentCacheBust);
       setupWzorHovers();
+      document.documentElement.scrollTop = scrollTop;
+      document.body.scrollTop = scrollTop;
       break;
 
     case 'selection':
@@ -173,14 +180,30 @@ window.addEventListener('message', (event) => {
       wzorMap = message.map;
       setupWzorHovers();
       break;
+
+    case 'imageChanged': {
+      currentCacheBust = message.timestamp;
+      const suffix = `?v=${message.timestamp}`;
+      previewEl.querySelectorAll('img').forEach((img) => {
+        if (!img.src || !img.src.includes('vscode-resource')) return;
+        img.src = img.src.split('?')[0] + suffix;
+      });
+      document.querySelectorAll('.wzor-tooltip img').forEach((el) => {
+        const img = el as HTMLImageElement;
+        if (!img.src || !img.src.includes('vscode-resource')) return;
+        img.src = img.src.split('?')[0] + suffix;
+      });
+      break;
+    }
   }
 });
 
 // --- Resolve image sources to webview URIs ---
 
-function resolveImageSources(container: HTMLElement, baseUrl: string) {
+function resolveImageSources(container: HTMLElement, baseUrl: string, cacheBust?: number) {
   if (!baseUrl) return;
   const base = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+  const suffix = cacheBust ? `?v=${cacheBust}` : '';
 
   container.querySelectorAll('img').forEach((img) => {
     const src = img.getAttribute('src');
@@ -189,14 +212,16 @@ function resolveImageSources(container: HTMLElement, baseUrl: string) {
     if (/^(https?|data|blob|vscode-):/.test(src)) return;
 
     try {
+      let resolved: string;
       if (src.startsWith('/')) {
         // Absolute file path — use origin from base URL
         const origin = new URL(base).origin;
-        img.src = origin + src;
+        resolved = origin + src;
       } else {
         // Relative path — resolve against document directory
-        img.src = new URL(src, base).toString();
+        resolved = new URL(src, base).toString();
       }
+      img.src = resolved + suffix;
     } catch {
       // Invalid URL, leave as-is
     }
@@ -221,7 +246,7 @@ function setupWzorHovers() {
       const tooltip = document.createElement('div');
       tooltip.className = 'wzor-tooltip';
       const img = document.createElement('img');
-      img.src = wzorMap[id];
+      img.src = wzorMap[id].split('?')[0] + `?v=${currentCacheBust}`;
       tooltip.appendChild(img);
       document.body.appendChild(tooltip);
 

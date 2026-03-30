@@ -1,5 +1,6 @@
 const esbuild = require('esbuild');
 const { sassPlugin } = require('esbuild-sass-plugin');
+const fs = require('fs');
 const path = require('path');
 
 const isProduction = process.argv.includes('--production');
@@ -31,17 +32,41 @@ const webviewConfig = {
   plugins: [sassPlugin()],
 };
 
+function copyVendorAssets() {
+  // KaTeX CSS + fonts
+  fs.copyFileSync(
+    path.join(__dirname, 'node_modules/katex/dist/katex.min.css'),
+    path.join(__dirname, 'dist/katex.min.css')
+  );
+  const fontsDir = path.join(__dirname, 'dist/fonts');
+  if (!fs.existsSync(fontsDir)) fs.mkdirSync(fontsDir, { recursive: true });
+  for (const f of fs.readdirSync(path.join(__dirname, 'node_modules/katex/dist/fonts'))) {
+    fs.copyFileSync(
+      path.join(__dirname, 'node_modules/katex/dist/fonts', f),
+      path.join(fontsDir, f)
+    );
+  }
+
+  // highlight.js theme
+  fs.copyFileSync(
+    path.join(__dirname, 'node_modules/highlight.js/styles/night-owl.css'),
+    path.join(__dirname, 'dist/night-owl.css')
+  );
+}
+
 async function main() {
   if (isWatch) {
     const extCtx = await esbuild.context(extensionConfig);
     const webCtx = await esbuild.context(webviewConfig);
     await Promise.all([extCtx.watch(), webCtx.watch()]);
+    copyVendorAssets();
     console.log('Watching for changes...');
   } else {
     await Promise.all([
       esbuild.build(extensionConfig),
       esbuild.build(webviewConfig),
     ]);
+    copyVendorAssets();
     console.log('Build complete.');
   }
 }
